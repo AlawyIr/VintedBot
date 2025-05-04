@@ -3,15 +3,15 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 
-TELEGRAM_TOKEN = os.getenv("7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE")
-CHAT_ID = os.getenv("5596101074")
+TELEGRAM_TOKEN = "7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE"
+CHAT_ID = "5596101074"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 }
 
 def search_vinted(item_name: str, max_price: int):
-    url = f"https://www.vinted.fr/api/v2/catalog/items"
+    url = "https://www.vinted.fr/api/v2/catalog/items"
     params = {
         "search_text": item_name,
         "price_to": max_price,
@@ -23,7 +23,11 @@ def search_vinted(item_name: str, max_price: int):
     return data.get("items", [])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Bienvenue ! Envoyez-moi un message sous la forme :\n`nom de l'article, prix max`\nExemple : `air force 1, 50`", parse_mode="Markdown")
+    await update.message.reply_text(
+        "👋 Bienvenue ! Envoyez-moi un message sous la forme :\n"
+        "`nom de l'article, prix max`\nExemple : `air force 1, 50`",
+        parse_mode="Markdown"
+    )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -48,7 +52,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         for i in items:
-            msg = f"👟 {i['title']}\n💶 Prix: {i['price']}€\n🔗 [Voir l'article](https://www.vinted.fr{ i['url'] })"
+            title = i.get("title", "Titre inconnu")
+            price = i.get("price", {}).get("amount", "?")
+            currency = i.get("price", {}).get("currency", "€")
+            url = "https://www.vinted.fr" + i.get("url", "")
+            msg = f"👟 {title}\n💶 Prix: {price} {currency}\n🔗 [Voir l'article]({url})"
             await update.message.reply_text(msg, parse_mode="Markdown")
     except Exception as e:
         await update.message.reply_text("❌ Une erreur s'est produite pendant la recherche.")
