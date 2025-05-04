@@ -3,8 +3,8 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+TELEGRAM_TOKEN = os.getenv("7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE")
+CHAT_ID = os.getenv("5596101074")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
