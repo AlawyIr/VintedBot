@@ -1,57 +1,78 @@
+import logging
 import requests
-import time
-import os
-from playwright.sync_api import sync_playwright
-import telegram
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+# Set your Telegram bot token here
+BOT_TOKEN = "7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE"
 
-bot = telegram.Bot(token=TELEGRAM_TOKEN)
+# Enable logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
-def search_vinted(item, max_price):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
+# Search function for Vinted items
+def search_vinted(query: str, max_price: int, limit: int = 5):
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-        url = f"https://www.vinted.fr/vetements?search_text={item}&price_to={max_price}"
-        page.goto(url)
-        page.wait_for_timeout(5000)  # wait for JS to load
+    url = f"https://www.vinted.fr/api/v2/catalog/items"
+    params = {
+        "search_text": query,
+        "price_to": max_price,
+        "per_page": limit
+    }
 
-        content = page.content()
-        hrefs = page.eval_on_selector_all("a[href^='/items/']", "elements => elements.map(e => e.href)")
-        browser.close()
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json().get("items", [])
 
-        unique_links = list(set(hrefs))[:5]
-        return unique_links
+# Start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 Send me your search like this:\n\n`air force 1, 50`",
+        parse_mode="Markdown"
+    )
 
-def handle_message(text):
-    try:
-        item, price = text.split(",", 1)
-        item = item.strip()
-        price = int(price.strip())
-        results = search_vinted(item, price)
+# Message handler
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
 
-        if results:
-            for link in results:
-                bot.send_message(chat_id=CHAT_ID, text=link)
-        else:
-            bot.send_message(chat_id=CHAT_ID, text="No items found.")
-    except Exception as e:
-        bot.send_message(chat_id=CHAT_ID, text="❌ Invalid format. Send like: `air force 1, 50`")
+    if ',' in text:
+        try:
+            item, price = map(str.strip, text.split(',', 1))
+            price = int(price)
+            await update.message.reply_text(f"🔍 Searching for '{item}' under €{price}...")
 
+            items = search_vinted(item, price)
+
+            if not items:
+                await update.message.reply_text("❌ No items found.")
+                return
+
+            for item in items:
+                title = item.get("title")
+                price = item.get("price", {}).get("amount")
+                currency = item.get("price", {}).get("currency")
+                url = f"https://www.vinted.fr{item.get('url')}"
+                photo = item.get("photo", {}).get("url")
+
+                text = f"🛍️ *{title}*\n💸 {price} {currency}\n🔗 [View Listing]({url})"
+                await update.message.reply_photo(photo=photo, caption=text, parse_mode="Markdown")
+        except ValueError:
+            await update.message.reply_text("❌ Couldn't read the price. Please send like: `air force 1, 50`")
+    else:
+        await update.message.reply_text("❌ Invalid format. Please send like: `air force 1, 50`")
+
+# Main function
 def main():
-    last_update = 0
-    while True:
-        updates = bot.get_updates()
-        if updates:
-            latest = updates[-1]
-            if latest.update_id > last_update:
-                last_update = latest.update_id
-                msg = latest.message.text
-                handle_message(msg)
-        time.sleep(5)
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("🤖 Bot is running...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
