@@ -7,7 +7,12 @@ TELEGRAM_TOKEN = "7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE"
 CHAT_ID = "5596101074"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "en-US,en;q=0.9",
+    "x-csrf-token": "null",
+    "x-platform": "web",
+    "cookie": "eHhwZDAvTjU0Vm5mT0R2anQySzVhUnBKUEJPZkFWQ3FYRm5jNFNEMTVuM1Jyb3pEYkRDNkJyZUVQUzUyMittbjR3NTJscTRvbUtSR2xEajQ2NDdNblUybmE3akdOaHJUM2VHYm5DS0ZrVUtaWmZReGh4UzZVRXpkaHkvcVlvOGtkTlF5Y3lVTnJhS1gzeXEzNnF6eThqcGwyWVpiT3c2bkhIei8rdkhzdVI4SWpRU0Q2c0RzdGpKYks3VU9Tc2MvSFFFRUNKdWFiN3NZQm0ySzJXbkp4QWFlWW9ZeFl6ZTdYb2I4TTJZWUVwRGZZblRkM294ck9ZODZXMFpnNkw1dEJWb3hTclZ5eGlVclhibnZDM3dyWXkzUjRCMGZqSkNIT3J1KzBiaGxPME1seHBybzI4ZHdRYkZJdGNJYWNnRWNsK002VngzNWFHSm9RMW5YNGdlbWRVTVduZkhsRFExSHY5UHMrQXdPcml0YlBoZFZvNTIyS2NJcXVOS21XMFlkOXhzLzdsVEs4WEJGdlFpZ1lNOEduVUY1ZVRwL1NONUtHMnQyTmlJcEVGeXV6d21QNHBUT1BJdW9CNU03OU4xcGtXWkYraFFIdjhyeEp2dkg1dkl2SktjcUo2bk4rTHY0TDZYd0cyS3RmaEQ2NlpwcXFYdXlNcTdlNVpqTWJzb0greERxZWlYejB3VEJTeTVlcXkvZFZzY0FhT2VvVis3amdWY3U2Vm8zZTNXTnZYSkJJNXV6ZDFxTkIzZm1FMVNCODhmUXFvUDRaTmdHdU4reTZFdmNHOXl2aGRsOGpHdElJdkVmZldJMHRyWkpCZUJPZDNUakVJZlBwSG4vWE9UWC0tU09mU3ZwMzV4UUJCby9QdkhuakROQT09--c514e85fa80cff344dab15d1789d71a3d0ea5111"
 }
 
 def search_vinted(item_name: str, max_price: int):
