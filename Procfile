@@ -1,1 +1,1 @@
-start: python BotVinted.py
+worker: python3 BotVinted.py
