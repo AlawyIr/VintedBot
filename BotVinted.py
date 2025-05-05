@@ -1,43 +1,40 @@
+import asyncio
 import os
-import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
+from playwright.async_api import async_playwright
 
-# Make sure this is your actual Telegram bot token
-TELEGRAM_TOKEN = "7630121368:AAHiVZk4ff3w2CIJRvT8jEytkeYOKLl2gCE"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Put your bot token in Railway's environment variables
 
-# Headers with your real session cookie
-HEADERS = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "accept": "application/json, text/plain, */*",
-    "accept-language": "en-US,en;q=0.9",
-    "x-csrf-token": "null",
-    "x-platform": "web",
-    "cookie": "_vinted_fr_session=ekRpWXpXKzhKZHZvUEwvYkVVNnZVNVpiN3RrNXpJNHIwR2tHQm1Qam9WSXNFbXVYYzJoRmxSallCRFNxcHorekRuMGVXbUVJQWdDOE0yUXJnWTdkNWxsM0g5UFZ3WWRFczJHZnY3WVVWYWpEY1krWHRCditMam1NdEtsaUhxM3JSbmpLTGkvd2pYVjhPbU12RTFEVDkrNHNzaTViMzVrNUI5dnlOV2ZYaWtlaXhCRGtIMG9lYkhGSHZRS3FhL0k3NEMxOUc2U3ZicW9vRTh1NG51b2ZDYVFhWjhqLzI1MWVXR3E2amRIbzdBTUtkY3A0MlB4MURMYWQxUTdvWTJZUjhSYUY5aTBmTU5OOVNmTXhRQlUxRWkwMHl6UWM5MlRXeEJHMlVhMWEyOHN3UUVWTTFHcnpqRlk4eDMxYzNXazFSMWQzVFl5S3ZqNkJSbmhWcTNrQW40TXBZN0szUDFPbnJTYlR5dnljRks3enZXb29Cd0RwS2FGVkFZWWJkZE1DWmJXNHhiQk90V1MvOHpIb3hvUG5lOUdZZnFhSUlCcTNQbnJjSGxMbEVqaDFDZXpKcXRMYndWZVBKRkhDcHRub1FuYzlldnJ1UisvWGxjMXZnTURoNkVRYkIrdmJFZndMS3RxUm1yYVFZb055YWM2RlJNcDV2S2o0V2pHdEt0OCtMTFJsREZrY2dDc2xjb29WNXdPTDVXNFltUmtieHB2R2UxaEpkek1zbkY0R0g2R2Uzd01ySi85NWd0aVgraEZ5WTBUVE5Bdm5Ka0F6UEI4aFhFaE1xcUlINW1ENlM2N0JQMEEwL1NkaG1JdlZFclVDYXNtdHBMV0RHWW41ek1KMC0tRzcwTWhmaHcyUGVobmVUdHFCS1RzUT09--e371f6e52ad806900ee389dc40e6feee8691e490"
-}
+async def search_vinted(item_name: str, max_price: int):
+    results = []
+    url = f"https://www.vinted.fr/vetements?search_text={item_name.replace(' ', '+')}&price_to={max_price}"
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(url)
+        await page.wait_for_selector('[data-testid="item-box"]', timeout=10000)
+        items = await page.query_selector_all('[data-testid="item-box"]')
 
-def search_vinted(item_name: str, max_price: int):
-    url = "https://www.vinted.fr/api/v2/catalog/items"
-    params = {
-        "search_text": item_name,
-        "price_to": max_price,
-        "per_page": 5
-    }
-    response = requests.get(url, headers=HEADERS, params=params)
-    response.raise_for_status()
-    data = response.json()
-    return data.get("items", [])
+        for item in items[:5]:  # Limit to 5 items
+            title = await item.query_selector_eval('a[data-testid="item-title"]', 'el => el.textContent')
+            price = await item.query_selector_eval('div[data-testid="item-box-price"]', 'el => el.textContent')
+            link = await item.query_selector_eval('a[data-testid="item-title"]', 'el => el.href')
+            results.append((title.strip(), price.strip(), link.strip()))
+
+        await browser.close()
+    return results
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome! Send a message like:\n`item name, max price`\nExample: `air force 1, 50`",
-        parse_mode="Markdown"
-    )
+        "👋 Bienvenue sur le bot Vinted !\n\nEnvoyez un message comme :\n`air force 1, 50`\n(prix en euros)",
+        parse_mode="Markdown")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if "," not in text:
-        await update.message.reply_text("❌ Invalid format. Send like: `air force 1, 50`", parse_mode="Markdown")
+        await update.message.reply_text("❌ Format invalide. Envoyez comme : `air force 1, 50`", parse_mode="Markdown")
         return
 
     item, price = text.split(",", 1)
@@ -45,29 +42,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         max_price = int(price.strip())
     except ValueError:
-        await update.message.reply_text("❌ The price must be a number.", parse_mode="Markdown")
+        await update.message.reply_text("❌ Le prix doit être un nombre entier.", parse_mode="Markdown")
         return
 
-    await update.message.reply_text(f"🔍 Searching for `{item}` under {max_price}€...", parse_mode="Markdown")
-
+    await update.message.reply_text(f"🔍 Recherche de `{item}` pour moins de {max_price}€...", parse_mode="Markdown")
     try:
-        items = search_vinted(item, max_price)
-        if not items:
-            await update.message.reply_text("❌ No items found.")
+        listings = await search_vinted(item, max_price)
+        if not listings:
+            await update.message.reply_text("❌ Aucun article trouvé.")
             return
 
-        for i in items:
-            msg = f"🛍 {i['title']}\n💶 Price: {i['price']}€\n🔗 [View item](https://www.vinted.fr{i['url']})"
-            await update.message.reply_text(msg, parse_mode="Markdown")
+        for title, price, link in listings:
+            await update.message.reply_text(f"👟 {title}\n💶 {price}\n🔗 {link}")
     except Exception as e:
-        await update.message.reply_text("❌ An error occurred while searching.")
-        print("Error:", e)
+        print("Erreur:", e)
+        await update.message.reply_text("❌ Une erreur est survenue pendant la recherche.")
 
-def main():
+async def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
