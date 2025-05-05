@@ -1,2 +1,2 @@
 python-telegram-bot==20.7
-playwright==1.43.0
+requests
