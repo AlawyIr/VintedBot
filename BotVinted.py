@@ -13,7 +13,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 async def search_vinted(item_name, max_price):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.firefox.launch(headless=True)
         page = await browser.new_page()
         url = f"https://www.vinted.fr/catalog?search_text={item_name}&price_to={max_price}"
         await page.goto(url)
