@@ -6,6 +6,15 @@ from playwright.async_api import async_playwright
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Put your bot token in Railway's environment variables
 
+async def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
+
 async def search_vinted(item_name: str, max_price: int):
     results = []
     url = f"https://www.vinted.fr/vetements?search_text={item_name.replace(' ', '+')}&price_to={max_price}"
