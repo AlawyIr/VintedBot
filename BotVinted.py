@@ -5,8 +5,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from playwright.async_api import async_playwright
 
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
+TOKEN = "7570253222:AAFBtrWYWrQrFHKCAP9VXvVxDwcj4P2HSOQ"
+CHAT_ID = "5596101074"
 
 logging.basicConfig(level=logging.INFO)
 
