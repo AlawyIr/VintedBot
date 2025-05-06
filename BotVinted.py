@@ -1,87 +1,49 @@
-import os
+import asyncio
+import json
+import logging
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from playwright.async_api import async_playwright
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
+
+logging.basicConfig(level=logging.INFO)
 
 async def search_vinted(item_name, max_price):
-    async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=True)
-        page = await browser.new_page()
-        url = f"https://www.vinted.fr/catalog?search_text={item_name}&price_to={max_price}"
-        await page.goto(url)
-        await page.wait_for_timeout(3000)
+    url = f"https://www.vinted.fr/api/v2/catalog/items?search_text={item_name}&price_to={max_price}&per_page=5"
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+            page = await browser.new_page()
+            await page.goto(url)
+            content = await page.content()
+            await browser.close()
 
-        items = await page.locator('[data-testid="item-box"]').all()
-        results = []
+        data = json.loads(content)
+        items = data.get("items", [])
+        if not items:
+            return "❌ Aucun article trouvé."
 
-        for item in items[:5]:
-            title = await item.locator("h3").inner_text()
-            price = await item.locator('[data-testid="item-price"]').inner_text()
-            href = await item.locator("a").get_attribute("href")
-            results.append({
-                "title": title,
-                "price": price,
-                "url": href,
-            })
-
-        await browser.close()
+        results = "\n\n".join(
+            f"👟 {item['title']}\n💶 {item['price']}€\n🔗 https://www.vinted.fr{item['url']}"
+            for item in items
+        )
         return results
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Bienvenue ! Envoyez-moi un message comme ceci :\n`nom de l'article, prix max`\nEx: `air force 1, 50`",
-        parse_mode="Markdown",
-    )
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if "," not in text:
-        await update.message.reply_text(
-            "❌ Format invalide. Envoyez comme ceci : `air force 1, 50`",
-            parse_mode="Markdown",
-        )
-        return
-
-    item, price = text.split(",", 1)
-    item = item.strip()
-    try:
-        max_price = int(price.strip())
-    except ValueError:
-        await update.message.reply_text(
-            "❌ Le prix doit être un nombre entier.", parse_mode="Markdown"
-        )
-        return
-
-    await update.message.reply_text(
-        f"🔍 Recherche de `{item}` pour moins de {max_price}€...", parse_mode="Markdown"
-    )
-
-    try:
-        items = await search_vinted(item, max_price)
-        if not items:
-            await update.message.reply_text("❌ Aucun article trouvé.")
-            return
-
-        for i in items:
-            msg = f"👟 {i['title']}\n💶 Prix: {i['price']}\n🔗 [Voir l'article](https://www.vinted.fr{i['url']})"
-            await update.message.reply_text(msg, parse_mode="Markdown")
     except Exception as e:
-        await update.message.reply_text("❌ Une erreur s'est produite.")
-        print("Erreur:", e)
+        logging.error(f"Erreur de recherche : {e}")
+        return "❌ Une erreur s'est produite."
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🔍 Recherche de air force 1 pour moins de 50€...")
+    result = await search_vinted("air force 1", 50)
+    await update.message.reply_text(result)
+
+async def main():
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

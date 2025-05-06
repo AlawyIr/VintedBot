@@ -1,2 +1,3 @@
 #!/bin/bash
-python -m playwright install firefox
+echo "Installing Playwright browsers..."
+python -m playwright install chromium
