@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from playwright.async_api import async_playwright
 
-TOKEN = "TON_TOKEN_TELEGRAM_ICI"
+TOKEN = "7570253222:AAFBtrWYWrQrFHKCAP9VXvVxDwcj4P2HSOQ"
 
 logging.basicConfig(level=logging.INFO)
 
