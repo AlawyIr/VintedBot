@@ -1,53 +1,67 @@
-import asyncio
-import json
 import logging
+import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from playwright.async_api import async_playwright
 
-TOKEN = "7570253222:AAFBtrWYWrQrFHKCAP9VXvVxDwcj4P2HSOQ"
-CHAT_ID = "5596101074"
+TOKEN = "TON_TOKEN_TELEGRAM_ICI"
 
 logging.basicConfig(level=logging.INFO)
 
-async def search_vinted(item_name, max_price):
-    url = f"https://www.vinted.fr/api/v2/catalog/items?search_text={item_name}&price_to={max_price}&per_page=5"
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
-            page = await browser.new_page()
-            await page.goto(url)
-            content = await page.content()
+async def scrape_vinted(recherche: str, prix_max: float):
+    async with async_playwright() as p:
+        try:
+            browser = await p.chromium.launch(headless=True)
+            page = await (await browser.new_context()).new_page()
+
+            url = f"https://www.vinted.fr/catalog?search_text={recherche.replace(' ', '%20')}&price_to={prix_max}"
+            await page.goto(url, timeout=60000)
+            await page.wait_for_selector('div.feed-grid__item', timeout=10000)
+
+            articles = await page.query_selector_all('div.feed-grid__item')[:5]
+            resultats = []
+
+            for article in articles:
+                lien = await article.query_selector('a')
+                titre = await article.query_selector('h3')
+                prix = await article.query_selector('.feed-item__price')
+
+                url_article = await lien.get_attribute('href') if lien else "Lien non trouvé"
+                titre_txt = await titre.inner_text() if titre else "Sans titre"
+                prix_txt = await prix.inner_text() if prix else "Prix inconnu"
+
+                complet = f"{titre_txt}\n{prix_txt}\nhttps://www.vinted.fr{url_article}"
+                resultats.append(complet)
+
             await browser.close()
+            return "\n\n".join(resultats) if resultats else "Aucun article trouvé pour ta recherche."
 
-        data = json.loads(content)
-        items = data.get("items", [])
-        if not items:
-            return "❌ Aucun article trouvé."
+        except Exception as e:
+            return f"❌ Erreur lors du scraping : {e}"
 
-        results = "\n\n".join(
-            f"👟 {item['title']}\n💶 {item['price']}€\n🔗 https://www.vinted.fr{item['url']}"
-            for item in items
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texte = update.message.text.strip()
+
+    if "|" not in texte:
+        await update.message.reply_text(
+            "❗ Utilise ce format :\n\n`nom de l'article | prix max`\n\nExemple :\n`air force 1 | 50`",
+            parse_mode="Markdown"
         )
-        return results
+        return
+
+    try:
+        recherche, prix_max = [part.strip() for part in texte.split("|")]
+        prix_max = float(prix_max)
+        await update.message.reply_text("🔍 Je cherche sur Vinted...")
+
+        resultats = await scrape_vinted(recherche, prix_max)
+        await update.message.reply_text(resultats)
 
     except Exception as e:
-        logging.error(f"Erreur de recherche : {e}")
-        return "❌ Une erreur s'est produite."
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Recherche de air force 1 pour moins de 50€...")
-    result = await search_vinted("air force 1", 50)
-    await update.message.reply_text(result)
-
-async def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    await app.run_polling()
-
-import nest_asyncio
-nest_asyncio.apply()
+        await update.message.reply_text(f"⚠️ Erreur : {e}")
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(main())
-
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ Bot lancé !")
+    app.run_polling()
