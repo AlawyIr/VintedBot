@@ -18,7 +18,8 @@ async def scrape_vinted(recherche: str, prix_max: float):
             await page.goto(url, timeout=60000)
             await page.wait_for_selector('div.feed-grid__item', timeout=10000)
 
-            articles = await page.query_selector_all('div.feed-grid__item')[:5]
+            all_articles = await page.query_selector_all('div.feed-grid__item')
+            articles = all_articles[:5]  # ✅ slicing après l'attente
             resultats = []
 
             for article in articles:
