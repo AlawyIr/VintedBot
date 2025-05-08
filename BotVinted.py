@@ -8,6 +8,9 @@ TOKEN = "7570253222:AAFBtrWYWrQrFHKCAP9VXvVxDwcj4P2HSOQ"
 
 logging.basicConfig(level=logging.INFO)
 
+# Dictionnaire pour stocker les tentatives des utilisateurs
+user_attempts = {}
+
 async def scrape_vinted(recherche: str, prix_max: float):
     async with async_playwright() as p:
         try:
@@ -19,7 +22,7 @@ async def scrape_vinted(recherche: str, prix_max: float):
             await page.wait_for_selector('div.feed-grid__item', timeout=10000)
 
             all_articles = await page.query_selector_all('div.feed-grid__item')
-            articles = all_articles[:5]  # ✅ slicing après l'attente
+            articles = all_articles[:5]
             resultats = []
 
             for article in articles:
@@ -41,7 +44,15 @@ async def scrape_vinted(recherche: str, prix_max: float):
             return f"❌ Erreur lors du scraping : {e}"
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     texte = update.message.text.strip()
+
+    if user_id not in user_attempts:
+        user_attempts[user_id] = 10
+
+    if user_attempts[user_id] <= 0:
+        await update.message.reply_text("🚫 Tu as utilisé toutes tes tentatives. Plus aucune recherche disponible.")
+        return
 
     if "|" not in texte:
         await update.message.reply_text(
@@ -56,7 +67,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔍 Je cherche sur Vinted...")
 
         resultats = await scrape_vinted(recherche, prix_max)
+
+        # Réduction des tentatives après une recherche réussie
+        user_attempts[user_id] -= 1
         await update.message.reply_text(resultats)
+        await update.message.reply_text(f"📉 Il te reste {user_attempts[user_id]} tentative(s).")
 
     except Exception as e:
         await update.message.reply_text(f"⚠️ Erreur : {e}")
