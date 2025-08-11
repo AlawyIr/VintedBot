@@ -45,10 +45,10 @@ async def scrape_vinted(recherche: str, prix_max: float):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    texte = update.message.text.strip()
+    texte = update.message.text.strip() 
 
     if user_id not in user_attempts:
-        user_attempts[user_id] = 10
+        user_attempts[user_id] = 2
 
     if user_attempts[user_id] <= 0:
         await update.message.reply_text("🚫 Tu as utilisé toutes tes tentatives. Plus aucune recherche disponible.")
